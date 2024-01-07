@@ -16,7 +16,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 app = FastAPI()
-handler=Mangum(app)
+# handler=Mangum(app)
 
 username = 'postgres'
 password = 'admin'

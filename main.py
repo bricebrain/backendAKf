@@ -11,8 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine,Column, String, Integer, ARRAY, Boolean,DateTime,JSON
 from datetime import datetime
 
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+# from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker,declarative_base
 
 
 app = FastAPI()

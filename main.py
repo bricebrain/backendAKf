@@ -32,7 +32,7 @@ db_url ='postgresql://bricebrain:uoIdVeUb2Ci4@ep-odd-block-55907706.eu-central-1
 # f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
 
 
-engine = create_engine(db_url)
+engine = create_engine(db_url, pool_size=10, max_overflow=20)
 # Créer la table
 
 

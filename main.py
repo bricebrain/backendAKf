@@ -11,8 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine,Column, String, Integer, ARRAY, Boolean,DateTime,JSON
 from datetime import datetime
 
-# from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker,declarative_base
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 
 app = FastAPI()
@@ -195,7 +195,7 @@ async def root():
     return items
 
 @app.get("/articles",response_model=List[Articles], status_code=200)
-async def getArticles():
+def getArticles():
     items = db.query(TableArticles).filter(TableArticles.status == "ACTIVE").all()
     return items
 

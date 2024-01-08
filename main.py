@@ -1,5 +1,4 @@
 from datetime import datetime
-from mangum import Mangum 
 from typing import List,Optional,Any
 from fastapi import FastAPI,File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse

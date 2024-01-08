@@ -25,9 +25,9 @@ port = '5433'  # Par défaut, le port PostgreSQL est 5432
 database_name = 'hero'
 
 # Créez l'URL de connexion PostgreSQL
-db_url ='postgresql://bricebrain:uoIdVeUb2Ci4@ep-odd-block-55907706.eu-central-1.aws.neon.tech/optimusprimedb?sslmode=require'
+# db_url ='postgresql://bricebrain:uoIdVeUb2Ci4@ep-odd-block-55907706.eu-central-1.aws.neon.tech/optimusprimedb?sslmode=require'
 
-# db_url =f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
+db_url =f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
 
 
 # f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
@@ -160,7 +160,8 @@ db = SessionLocal()
 
 
 
-origins = ["*"]  # Ajoutez les origines autorisées
+origins = ["http://localhost","https://front-akf.vercel.app/",
+    "http://localhost:3000",]  # Ajoutez les origines autorisées
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -189,7 +190,7 @@ async def root():
     return "items"
 
 @app.get("/articles",response_model=List[Articles], status_code=200)
-def getArticles():
+async def getArticles():
     items = db.query(TableArticles).filter(TableArticles.status == "ACTIVE").all()
     return items
 

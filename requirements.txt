@@ -8,7 +8,6 @@ greenlet==3.0.3
 h11==0.14.0
 httptools==0.6.1
 idna==3.6
-mangum==0.17.0
 psycopg2==2.9.9
 pydantic==2.5.3
 pydantic_core==2.14.6

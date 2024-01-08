@@ -16,7 +16,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 app = FastAPI()
-# handler=Mangum(app)
+
 
 username = 'postgres'
 password = 'admin'
@@ -27,7 +27,7 @@ database_name = 'hero'
 # Créez l'URL de connexion PostgreSQL
 db_url ='postgresql://bricebrain:uoIdVeUb2Ci4@ep-odd-block-55907706.eu-central-1.aws.neon.tech/optimusprimedb?sslmode=require'
 
-#db_url =f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
+# db_url =f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
 
 
 # f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
@@ -160,7 +160,7 @@ db = SessionLocal()
 
 
 
-origins = ["*"]  # Ajoutez les origines autorisées
+origins = ["http://localhost", "http://localhost:3000", "https://front-akf.vercel.app"]  # Ajoutez les origines autorisées
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

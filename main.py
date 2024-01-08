@@ -160,7 +160,7 @@ db = SessionLocal()
 
 
 
-origins = ["http://localhost", "http://localhost:3000", "https://front-akf.vercel.app"]  # Ajoutez les origines autorisées
+origins = ["*"]  # Ajoutez les origines autorisées
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

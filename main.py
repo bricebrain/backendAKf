@@ -43,7 +43,7 @@ Base = declarative_base()
 class TableArticles(Base):
     __tablename__ = "articles"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True,autoincrement=True)
     brand = Column(String)
     price = Column(Integer)
     description = Column(String)
@@ -61,7 +61,7 @@ class TableArticles(Base):
 class TableCommande(Base):
     __tablename__ = "commandes"
     
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     civility = Column(String)
     firstname = Column(String)
     lastname = Column(String)

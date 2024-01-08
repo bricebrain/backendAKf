@@ -39,12 +39,7 @@ engine = create_engine(db_url)
 
 
 Base = declarative_base()
-class TablePerso(Base):
-    __tablename__ = "personage"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    namePerso = Column(String)
-    age = Column(Integer)
+
     
 class TableArticles(Base):
     __tablename__ = "articles"
@@ -165,7 +160,7 @@ db = SessionLocal()
 
 
 
-origins = ["http://localhost", "http://localhost:3000"]  # Ajoutez les origines autorisées
+origins = ["http://localhost", "http://localhost:3000", "https://front-akf.vercel.app"]  # Ajoutez les origines autorisées
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -189,10 +184,9 @@ class User (BaseModel):
     age : int
     
 
-@app.get("/",response_model=List[Perso], status_code=200)
+@app.get("/",response_model=str, status_code=200)
 async def root():
-    items = db.query(TablePerso).all()
-    return items
+    return "items"
 
 @app.get("/articles",response_model=List[Articles], status_code=200)
 def getArticles():

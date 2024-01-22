@@ -7,11 +7,11 @@ from cloudinary.utils import cloudinary_url
 from pydantic import BaseModel
 import cloudinary
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine,Column, String, Integer, ARRAY, Boolean,DateTime,JSON
+from sqlalchemy import create_engine,Column, String, Integer, ARRAY, Boolean,DateTime,JSON,ForeignKey,desc,asc
 from datetime import datetime
 
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker,relationship,joinedload
 
 
 app = FastAPI()
@@ -24,9 +24,9 @@ port = '5433'  # Par défaut, le port PostgreSQL est 5432
 database_name = 'hero'
 
 # Créez l'URL de connexion PostgreSQL
-db_url ='postgresql://bricebrain:uoIdVeUb2Ci4@ep-odd-block-55907706.eu-central-1.aws.neon.tech/optimusprimedb?sslmode=require'
+#db_url ='postgresql://bricebrain:uoIdVeUb2Ci4@ep-odd-block-55907706.eu-central-1.aws.neon.tech/optimusprimedb?sslmode=require'
 
-# db_url =f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
+db_url =f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
 
 
 # f'postgresql://{username}:{password}@{host}:{port}/{database_name}'
@@ -56,21 +56,36 @@ class TableArticles(Base):
     picture =Column(ARRAY(String))  
     created =  Column(DateTime, default=datetime.utcnow)
     updated =  Column(DateTime, default=datetime.utcnow)
+
+class TableClient(Base):
+    __tablename__ = "clients"
+    
+    id = Column(Integer, primary_key=True, index=True,autoincrement=True)
+    gender = Column(String)
+    firstname = Column(String)
+    lastname = Column(String)
+    address = Column(String)
+    email = Column(String)
+    phone = Column(String)
+    favoris =Column(ARRAY(Integer))  
+    password = Column(String)
+    status = Column(String)
+    type = Column(String)
+    picture = Column(String)
+    commandes = relationship("TableCommande", back_populates="client")
+    created =  Column(DateTime, default=datetime.utcnow)
+    updated =  Column(DateTime, default=datetime.utcnow)
     
     
 class TableCommande(Base):
     __tablename__ = "commandes"
     
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    civility = Column(String)
-    firstname = Column(String)
-    lastname = Column(String)
-    address = Column(String)
-    phone = Column(String) 
-    email = Column(String)
+    clientId =  Column(Integer, ForeignKey("clients.id"))
     cart = Column(ARRAY(JSON), default=[])
     status = Column(String)
     total= Column(Integer)
+    client = relationship("TableClient", back_populates="commandes")
     created =  Column(DateTime, default=datetime.utcnow)
     updated =  Column(DateTime, default=datetime.utcnow)
     
@@ -101,7 +116,7 @@ class Perso(BaseModel):
     #     orm_mode=True
     
 class Articles(BaseModel): 
-    id : Optional[int] = None
+    id: Optional[int] = None
     brand :str
     price:float
     isBestseller :bool
@@ -131,21 +146,50 @@ class Cart(BaseModel):
 
     
  
+
+ 
+    
+    
+class Client(BaseModel): 
+    id : Optional[int] = None
+    gender : str 
+    firstname  : str 
+    lastname  : str 
+    address  : str 
+    email : str 
+    phone  : str 
+    favoris :List[int] = None
+    password : str 
+    status : str 
+    type : str 
+    picture : Optional[str] = None 
+    created : Optional[datetime] = None
+    updated : Optional[datetime] = None   
+    
+class ClientTruncate(BaseModel): 
+    id : Optional[int] = None
+    gender : str 
+    firstname  : str 
+    lastname  : str 
+    address  : str 
+    email : str 
+    phone  : str 
+    favoris :List[int] = None
+    status : str 
+    type : str 
+    picture : Optional[str] = None 
+    created : Optional[datetime] = None
+    updated : Optional[datetime] = None   
+
 class Commande(BaseModel): 
     id : Optional[int] = None
-    civility :str
-    firstname:str
-    lastname :str
-    address :str
-    phone :str
-    email :Optional[str] = None
+    clientId :int
     status :str
     cart :Any
     total:float
     created : Optional[datetime] = None
-    updated : Optional[datetime] = None   
-
-
+    updated : Optional[datetime] = None  
+    client: Optional[Client] = None
     
     
 class UpdateStatus(BaseModel): 
@@ -182,6 +226,10 @@ class User (BaseModel):
     name :str
     age : int
     
+class ConnexionUser (BaseModel):
+    email :str
+    password : str
+    
 
 @app.get("/",response_model=str, status_code=200)
 async def root():
@@ -189,17 +237,61 @@ async def root():
 
 @app.get("/articles",response_model=List[Articles], status_code=200)
 async def getArticles():
-    items = db.query(TableArticles).filter(TableArticles.status == "ACTIVE").all()
+    items = db.query(TableArticles).filter(TableArticles.status == "ACTIVE"). all()
     return items
 
-@app.get("/commandes",response_model=List[Commande], status_code=200)
-async def getArticles():
-    items = db.query(TableCommande).all()
+@app.get("/clients",response_model=List[Client], status_code=200)
+async def getClients():
+    items = db.query(TableClient). all()
     return items
+
+@app.get("/stockArticles",response_model=List[Articles], status_code=200)
+async def getArticles():
+    items = db.query(TableArticles).filter(TableArticles.status == "ACTIVE").order_by(asc(TableArticles.stock)).all()
+    return items
+
+
+
+@app.get("/commandes",response_model=List[Commande], status_code=200)
+async def getCommandes():
+    items = db.query(TableCommande).order_by(desc(TableCommande.updated)).all()
+    return items
+
+@app.get("/analyse",response_model=Any, status_code=200)
+async def analyse():
+    items = db.query(TableCommande).filter(TableCommande.status == "PAYE").all()
+    analyse ={
+        "montant_total":0,
+        "BAG":0,
+        "CLOTHING":0,
+        "CARE":0,
+        "BEAUTY_AND_ACCESORIES":0
+    }
+    
+    top_ventes ={  }
+  
+    
+    for item in items : 
+        analyse['montant_total']+= item.total
+        for article in item.cart:
+            valeur = article.get('id')
+            category = article.get('category')
+            analyse[category] =  analyse[category]  +1
+            print(valeur)
+            # id= article['id']
+            if top_ventes.get(valeur) :
+                top_ventes[valeur]=  top_ventes[valeur] + 1
+            else:
+                top_ventes[valeur]=1
+            # analyse[article['category']]+=1
+    
+    
+    return [top_ventes, analyse]
+
 
 
 @app.post("/addArticles",response_model=Articles, status_code=201)
-async def add(article:Articles):
+async def addArticles(article:Articles):
     new_article = TableArticles(
         brand=article.brand,
         price=article.price,
@@ -214,20 +306,67 @@ async def add(article:Articles):
     db.commit()
     return new_article
 
+
+@app.post("/tryToConnect",response_model=ClientTruncate, status_code=201)
+async def tryToConnect(info:ConnexionUser):
+    user = db.query(TableClient).filter(TableClient.email == info.email).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Client not found")
+    if user.password != info.password :
+        raise HTTPException(status_code=404, detail="password invalid")
+    return user
+            
+@app.post("/createAccount",response_model=ClientTruncate, status_code=201)
+async def createAccount(client:Client):
+    new_account = TableClient(
+        gender =client.gender,
+        firstname =client.firstname,
+        lastname =client.lastname,
+        address =client.address,
+        email =client.email,
+        phone =client.phone,
+        favoris =client.favoris,
+        password =client.password,
+        status =client.status,
+        type =client.type
+        )
+    db.add(new_account)
+    db.commit()
+    return new_account
+
+@app.put("/updateClientFav/{id}",response_model=Client, status_code=201)
+async def updateClientFav(id:int,tabFav:List[int] ):
+        items = db.query(TableClient).filter(TableClient.id == id).first()
+        items.favoris = tabFav
+        items.updated = datetime.utcnow()
+
+        db.commit()
+        return items
+
+
+# @app.get("/allCommande",response_model=List[Commande], status_code=200)
+# async def allCommande():
+#     allcommande =  db.query(TableCommande).options(joinedload(TableCommande.clientId)).all()
+#     print(allcommande)
+#     return allcommande
+
+
 @app.post("/addCommande",response_model=Commande, status_code=201)
 async def addCommande(commande:Commande):
     new_commande = TableCommande(
-        civility=commande.civility,
-        firstname=commande.firstname,
-        lastname = commande.lastname,
-        address = commande.address,
-        phone = commande.phone,
-        email = commande.email,
+        clientId =  commande.clientId,
         status = commande.status,
         cart = commande.cart,
         total = commande.total
         )
     db.add(new_commande)
+   
+    
+    for item in commande.cart:
+        article = db.query(TableArticles).filter(TableArticles.id == item['id']).first()
+        print()
+        article.stock -= item['quantity']
+    
     db.commit()
     return new_commande
 

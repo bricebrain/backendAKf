@@ -203,7 +203,7 @@ db = SessionLocal()
 
 
 
-origins = ["http://localhost", "http://localhost:3000", "https://front-akf.vercel.app"]  # Ajoutez les origines autorisées
+origins = ["http://localhost", "http://localhost:3000", "https://akfprestige.vercel.app"]  # Ajoutez les origines autorisées
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -417,7 +417,9 @@ async def create_upload_files(files: List[UploadFile] = File(...)):
 
             # Utilisez cloudinary_url pour obtenir l'URL public du fichier téléchargé
             url, options = cloudinary_url(response['public_id'], format=response['format'])
-            urls.append(url)
+            format_url = url.replace("http://", "https://")
+            
+            urls.append(format_url)
 
         return JSONResponse(content={"urls": urls}, status_code=200)
 

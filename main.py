@@ -11,7 +11,7 @@ from sqlalchemy import create_engine,Column, String, Integer, ARRAY, Boolean,Dat
 from datetime import datetime
 
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker,relationship,joinedload
+from sqlalchemy.orm import sessionmaker,relationship,joinedload, Session
 
 
 app = FastAPI()
@@ -199,7 +199,7 @@ class UpdateStatus(BaseModel):
 
 
 
-db = SessionLocal()
+
 
 
 
@@ -212,11 +212,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+engine = create_engine(
+    db_url,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,   # important sur Render
+    pool_recycle=1800,    # évite connexions mortes
+)
+
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 def get_db():
-    
-    # sessionmaker(autocommit=False, autoflush=True, bind=engine)()
+    db = SessionLocal()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
@@ -232,33 +245,33 @@ class ConnexionUser (BaseModel):
     
 
 @app.get("/",response_model=str, status_code=200)
-async def root():
+def root():
     return "items"
 
 @app.get("/articles",response_model=List[Articles], status_code=200)
-async def getArticles():
+def getArticles(db: Session = Depends(get_db)):
     items = db.query(TableArticles).filter(TableArticles.status == "ACTIVE"). all()
     return items
 
 @app.get("/clients",response_model=List[Client], status_code=200)
-async def getClients():
+def getClients(db: Session = Depends(get_db)):
     items = db.query(TableClient). all()
     return items
 
 @app.get("/stockArticles",response_model=List[Articles], status_code=200)
-async def getArticles():
+def getArticles(db: Session = Depends(get_db)):
     items = db.query(TableArticles).filter(TableArticles.status == "ACTIVE").order_by(asc(TableArticles.stock)).all()
     return items
 
 
 
 @app.get("/commandes",response_model=List[Commande], status_code=200)
-async def getCommandes():
+def getCommandes(db: Session = Depends(get_db)):
     items = db.query(TableCommande).order_by(desc(TableCommande.updated)).all()
     return items
 
 @app.get("/analyse",response_model=Any, status_code=200)
-async def analyse():
+def analyse(db: Session = Depends(get_db)):
     items = db.query(TableCommande).filter(TableCommande.status == "PAYE").all()
     analyse ={
         "montant_total":0,
@@ -291,7 +304,7 @@ async def analyse():
 
 
 @app.post("/addArticles",response_model=Articles, status_code=201)
-async def addArticles(article:Articles):
+def addArticles(article:Articles, db: Session = Depends(get_db)):
     new_article = TableArticles(
         brand=article.brand,
         price=article.price,
@@ -303,12 +316,13 @@ async def addArticles(article:Articles):
         picture = article.picture
         )
     db.add(new_article)
-    db.commit()
+    db.flush()      # pour obtenir new_article.id si besoin
+    db.refresh(new_article)
     return new_article
 
 
 @app.post("/tryToConnect",response_model=ClientTruncate, status_code=201)
-async def tryToConnect(info:ConnexionUser):
+def tryToConnect(info:ConnexionUser,  db: Session = Depends(get_db)):
     user = db.query(TableClient).filter(TableClient.email == info.email).first()
     if user is None:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -317,7 +331,7 @@ async def tryToConnect(info:ConnexionUser):
     return user
             
 @app.post("/createAccount",response_model=ClientTruncate, status_code=201)
-async def createAccount(client:Client):
+def createAccount(client:Client,  db: Session = Depends(get_db)):
     new_account = TableClient(
         gender =client.gender,
         firstname =client.firstname,
@@ -335,7 +349,7 @@ async def createAccount(client:Client):
     return new_account
 
 @app.put("/updateClientFav/{id}",response_model=Client, status_code=201)
-async def updateClientFav(id:int,tabFav:List[int] ):
+def updateClientFav(id:int,tabFav:List[int],  db: Session = Depends(get_db) ):
         items = db.query(TableClient).filter(TableClient.id == id).first()
         items.favoris = tabFav
         items.updated = datetime.utcnow()
@@ -352,7 +366,7 @@ async def updateClientFav(id:int,tabFav:List[int] ):
 
 
 @app.post("/addCommande",response_model=Commande, status_code=201)
-async def addCommande(commande:Commande):
+def addCommande(commande:Commande,  db: Session = Depends(get_db)):
     new_commande = TableCommande(
         clientId =  commande.clientId,
         status = commande.status,
@@ -361,18 +375,21 @@ async def addCommande(commande:Commande):
         )
     db.add(new_commande)
    
-    
     for item in commande.cart:
-        article = db.query(TableArticles).filter(TableArticles.id == item['id']).first()
-        print()
-        article.stock -= item['quantity']
-    
-    db.commit()
+        article = db.query(TableArticles).filter(TableArticles.id == item["id"]).with_for_update().first()
+        if not article:
+            raise HTTPException(status_code=404, detail=f"Article {item['id']} introuvable")
+        if article.stock < item["quantity"]:
+            raise HTTPException(status_code=400, detail=f"Stock insuffisant pour l'article {item['id']}")
+        article.stock -= item["quantity"]
+
+    db.flush()
+    db.refresh(new_commande)
     return new_commande
 
 
 @app.put("/updateCommande/{id}",response_model=Commande, status_code=201)
-async def updateArticles(id:int,status:str ):
+def updateArticles(id:int,status:str ,  db: Session = Depends(get_db)):
         items = db.query(TableCommande).filter(TableCommande.id == id).first()
         items.status = status
         items.updated = datetime.utcnow()
@@ -382,7 +399,7 @@ async def updateArticles(id:int,status:str ):
 
 
 @app.put("/updateArticle/{id}",response_model=Articles, status_code=201)
-async def updateArticles(id:int,article:Articles ):
+def updateArticles(id:int,article:Articles ,  db: Session = Depends(get_db)):
         items = db.query(TableArticles).filter(TableArticles.id == id).first()
         items.brand=article.brand
         items.price=article.price
@@ -399,7 +416,7 @@ async def updateArticles(id:int,article:Articles ):
         return items
     
 @app.put("/delete/{id}",response_model=Articles, status_code=201)
-async def updateArticles(id:int,data:UpdateStatus ):
+def updateArticles(id:int,data:UpdateStatus,  db: Session = Depends(get_db) ):
         items = db.query(TableArticles).filter(TableArticles.id == id).first()
         items.status = data.status
         items.updated = datetime.utcnow()
@@ -408,7 +425,7 @@ async def updateArticles(id:int,data:UpdateStatus ):
 
     
 @app.post("/uploadfilesMulti/")
-async def create_upload_files(files: List[UploadFile] = File(...)):
+def create_upload_files(files: List[UploadFile] = File(...),  db: Session = Depends(get_db)):
     try:
         urls = []
         for file in files:

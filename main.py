@@ -203,7 +203,7 @@ class UpdateStatus(BaseModel):
 
 
 
-origins = ["http://localhost", "http://localhost:3000", "https://akfprestige.vercel.app"]  # Ajoutez les origines autorisées
+origins = ["http://localhost", "http://localhost:3000","http://localhost:3001", "http://localhost:5173",  "https://akfprestige.vercel.app"]  # Ajoutez les origines autorisées
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
